@@ -565,10 +565,9 @@ char* gen_expr(struct node* root, struct tac_context** tacc){
                     break;
 
                 case 12:
-                        str = gen_expr(root->children[1], tacc);
-                        write = snprintf((tac_buffer + tac_buffer_index), (sizeof(tac_buffer) - tac_buffer_index), "    Print %s\n", str);
-                        tac_buffer_index += write;
-
+                    str = gen_expr(root->children[1], tacc);
+                    write = snprintf((tac_buffer + tac_buffer_index), (sizeof(tac_buffer) - tac_buffer_index), "    Print %s\n", str);
+                    tac_buffer_index += write;
                     break;
                 case 13:
                     str = gen_expr(root->children[1], tacc);
@@ -673,10 +672,7 @@ char* gen_expr(struct node* root, struct tac_context** tacc){
                     (*tacc)->stack_mem -= num;
                 }
             }
-            else if (root->size == 3) {
-                str = gen_expr(root->children[1], tacc);
-            }
-            else {
+            else{
                 for (int i = 0; i < root->size; i++){
                     str = gen_expr(root->children[i], tacc);
                 }
@@ -816,7 +812,18 @@ char* gen_expr(struct node* root, struct tac_context** tacc){
         case 30:
             str = root->children[0]->lexeme;
             (*tacc)->tac_type = root->children[0]->type;
-            break;            
+            break;
+
+        case 27:    // Expression node
+            str = gen_expr(root->children[0], tacc);
+            if (root->children[1]->size > 1) {
+                char* temp = malloc(sizeof(char) * 10);
+                snprintf(temp, 10, "t%d", (*tacc)->temp_counter++);
+                write = snprintf((tac_buffer + tac_buffer_index), (sizeof(tac_buffer) - tac_buffer_index), "    %s = !%s\n", temp, str);
+                tac_buffer_index += write;
+                str = temp;
+            }
+            break;
 
         default:
             for (int i = 0; i < root->size; i++){
@@ -826,6 +833,7 @@ char* gen_expr(struct node* root, struct tac_context** tacc){
                     str = temp;
                 }
             }
+            break;
     }
     return str;
 
@@ -937,10 +945,12 @@ void print_tac_function_aux(struct node* root, struct tac_context** tacc, FILE* 
 // Prints the start of a function definition in TAC
 void print_tac(struct node* root, struct tac_context** tacc, FILE* tac_table){
     
+
     // Print functions to tac file
     print_tac_function_aux(root->children[0], tacc, tac_table);
-    (*tacc)->memory = 0;
 
+
+    (*tacc)->memory = 0;
     // Print main to tac file
     fprintf(tac_table, "main:\n");
     print_tac_main_aux(root->children[1], tacc);
@@ -1258,8 +1268,8 @@ void semantic_check(
                 scope_check(tl.my_lexeme, current_scope, line_number, type_flag, error);
             }
             break;
-
-        case 31:    // <exp_seq'> Produces epsilon, when a function call exists removes a function from the function call stack.
+        case 29:
+        case 31:    // <exp_seq> or <exp_seq'> Produces epsilon, when a function call exists removes a function from the function call stack.
             if (function_call_stack->num_functions > 0) {
                 remove_function(function_call_stack);
             }
@@ -1761,7 +1771,7 @@ int main(int argc, char *argv[]){
             if(previous_state == 12){
                 // Case is integer
                 tl.is_int_flag = 1;
-            }else if(previous_state == 14 || previous_state == 17){
+            }else if(previous_state == 14 || previous_state == 16){
                 // Case is double
                 tl.is_int_flag = 0;
             }
